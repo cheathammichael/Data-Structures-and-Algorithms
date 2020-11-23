@@ -1,0 +1,49 @@
+This is a test file. It is to be used with the word count program in Netbeans IDE.
+I am copying some text into the file from a popular webpage in order to increase
+the variance of numbers of words available.
+
+When you imagine a gaming headset, it’s hard not to think of something from Razer. 
+The big bulky headphones, LED riddled chassis, and jet black exterior of most of 
+the company’s products basically codified the product category. Now, Razer’s newest 
+gaming headset is setting itself apart by jettisoning almost all of that. The Razer 
+BlackShark V2 features a pared back, simple look. There are no lights, bulky 
+headphones, or any other aesthetic flourishes at all really.
+
+Stripped of so much flash, does the BlackShark V2 have the substance to back it up?
+
+From the outset, it’s obvious the Razer BlackShark V2 is a gaming headset; from its 
+boom mic, to the extra prominent volume dial, to the neon green accents. However, 
+there’s a degree of aesthetic restraint here that other Razer gaming headsets lack. 
+The headphones are smooth and not as bulky as something like, say, the Razer Kraken 
+or Thresher. There aren’t any strange design flourishes or colored LEDs. Even the Razer 
+logo is rather small compared to other headsets. Basically, it looks more like a regular 
+pair of headphones than most Razer headsets.
+
+The Razer BlackShark V2 is a primarily metal construction, with a headband covered in a 
+soft foam cushion wrapped in a mesh fabric. The wireframe hinges don’t feel terribly 
+sturdy, but I never ran into any issues over the course of reviewing the headset. The 
+headphones have a pretty large tilt range, so people with wider heads shouldn’t have 
+to worry about finding a comfortable fit. The ear pads are made of memory foam covered 
+in layers of leatherette and mesh fabric; they’re very soft, and achieving a decent seal 
+is extremely easy.
+
+Actually using the headset is pretty straightforward. There’s very little in the way of 
+onboard controls, with just a volume dial and a mic mute button on the left headphone. 
+The volume dial sticks out rather prominently from the side of the headphone, but there’s 
+enough resistance that an accidental bump won’t change anything, and it actually feels 
+pretty satisfying to turn; it has a built in catch at the mid point of the knob for some 
+reason.
+
+This is largely a plug and play device. Once the USB soundcard installs its driver, you 
+don’t really need to do anything to get it to work on PC. On consoles you need to do even 
+less (just plug it into the 3.5mm headphone jack of the controller).
+
+The headset’s more granular controls and additional features, like surround sound, are 
+handled by Razer Synapse 3, the company’s universal (sort of) companion app. Synapse works 
+well enough; the latest iteration of the app is better laid out than most gaming headset 
+apps, but it’s still a little clunky. The software lets you customize your EQ and mic 
+settings, and soon after launch it will include a suite of THX-tuned game profiles, to 
+tailor your sound to games like Apex Legends, Valorant, and more (game profiles will 
+launch August 6, 2020). These features are nice to have, but you also won’t be missing 
+much if you skip Synapse, especially if you’re not interested in games that use surround 
+sound.
