@@ -1,0 +1,205 @@
+trigger:
+    branches:
+      include:
+      - master
+stages:
+
+  - stage: Build
+    pool:
+      vmImage: windows-latest
+    jobs:
+      - job: Daniels_Big_Day
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'VWAC Core Platform Sandbox - Perficient(5)(62bc6e2a-0122-45b1-9b22-c00d9a111db8)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                #set defaults and reg sub with Os
+                az account set --subscription 62bc6e2a-0122-45b1-9b22-c00d9a111db8
+                #c1e15126-f2d9-45ed-94d8-ca98b200ac98
+
+                az provider register -n Microsoft.RedHatOpenShift --wait
+
+                #reg compute provider
+                az provider register -n Microsoft.Compute --wait
+
+                #same with storage
+                az provider register -n Microsoft.Storage --wait
+
+                #auth stuff
+                az provider register -n Microsoft.Authorization --wait
+
+                #register OS feature
+                az feature register --namespace Microsoft.RedHatOpenShift --name preview
+              powerShellErrorActionPreference: 'silentlyContinue'
+              addSpnToEnvironment: true
+              useGlobalConfig: true
+              powerShellIgnoreLASTEXITCODE: true
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'VWAC Core Platform Sandbox - Perficient(6)(62bc6e2a-0122-45b1-9b22-c00d9a111db8)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                #makes the group for the cluster
+                az group create \
+                  --name ${env:RESOURCEGROUP} \
+                  --location ${env:LOCATION}
+                start-sleep 10
+                #makes the vnet
+                az network vnet create \
+                  --resource-group ${env:RESOURCEGROUP} \
+                  --name aro-vnet \
+                  --address-prefixes 10.0.0.0/22
+                #empty subnet for master
+                az network vnet subnet create \
+                  --resource-group ${env:RESOURCEGROUP} \
+                  --vnet-name aro-vnet \
+                  --name master-subnet \
+                  --address-prefixes 10.0.0.0/23 \
+                  --service-endpoints Microsoft.ContainerRegistry
+                #same but workers
+                az network vnet subnet create \
+                  --resource-group ${env:RESOURCEGROUP} \
+                  --vnet-name aro-vnet \
+                  --name worker-subnet \
+                  --address-prefixes 10.0.2.0/23 \
+                  --service-endpoints Microsoft.ContainerRegistry
+
+                #this part disables private policies for the subnet ]
+                az network vnet subnet update \
+                  --name master-subnet \
+                  --resource-group ${env:RESOURCEGROUP} \
+                  --vnet-name aro-vnet \
+                  --disable-private-link-service-network-policies true
+              powerShellErrorActionPreference: 'silentlyContinue'
+              addSpnToEnvironment: true
+              useGlobalConfig: true
+              powerShellIgnoreLASTEXITCODE: true
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'VWAC Core Platform Sandbox - Perficient(7)(62bc6e2a-0122-45b1-9b22-c00d9a111db8)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                #makes the cluster
+                az aro create \
+                  --resource-group ${env:RESOURCEGROUP} \
+                  --name ${env:CLUSTER} \
+                  --vnet aro-vnet \
+                  --master-subnet master-subnet \
+                  --worker-subnet worker-subnet
+
+                #now wait like 20-30 mins. :/
+              powerShellErrorActionPreference: 'silentlyContinue'
+              addSpnToEnvironment: true
+              useGlobalConfig: true
+              powerShellIgnoreLASTEXITCODE: true
+          - task: ManualIntervention@8
+            inputs:
+              instructions: 'Wait for the cluster... dont rush it'
+              onTimeout: 'resume'
+          - task: HelmInstaller@1
+            displayName: Helm installer
+            inputs:
+              helmVersionToInstall: latest
+          - task: KubectlInstaller@0
+            displayName: Kubectl installer
+            inputs:
+              kubectlVersion: latest
+          #To use a secret variable in a script, you must explicitly map it as an environment variable.
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'VWAC Core Platform Sandbox - Perficient(6)(62bc6e2a-0122-45b1-9b22-c00d9a111db8)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                #Construct the cluster's OAuth callback URL and store it in a variable
+                $domain=$(az aro show -g ${env:resource_group} -n ${env:aro_cluster} --query clusterProfile.domain -o tsv)
+                $location=$(az aro show -g ${env:resource_group} -n ${env:aro_cluster} --query location -o tsv)
+                $apiServer=$(az aro show -g ${env:resource_group} -n ${env:aro_cluster} --query apiserverProfile.url -o tsv)
+                $webConsole=$(az aro show -g ${env:resource_group} -n ${env:aro_cluster} --query consoleProfile.url -o tsv)
+
+
+                #custom domain
+                #$oauthCallbackURL=https://oauth-openshift.apps.$domain/oauth2callback/AAD
+
+                #default eight character alnum string
+                $oauthCallbackURL=https://oauth-openshift.apps.$domain.$location.aroapp.io/oauth2callback/AAD
+
+                #gets the app id
+                $app_id=$(az ad app create \
+                  --query appId -o tsv \
+                  --display-name aro-auth \
+                  --reply-urls $oauthCallbackURL \
+                  --password ${env:keypass})
+                Write-Host "##vso[task.setvariable variable=app_id;]app_id"
+                #same but ten id
+                $tenant_id=$(az account show --query tenantId -o tsv)
+                Write-Host "##vso[task.setvariable variable=tenant_id;]tenant_id"
+
+                #  need to define the proper scopes to be able to read the user information from Azure Active Directory
+                az ad app permission add \
+                --api 00000002-0000-0000-c000-000000000000 \
+                --api-permissions 311a71cc-e848-46a1-bdf8-97ff7156d8e6=Scope \
+                --id $app_id
+                # This can also be passed in from a value created via cli into keyvault to keep zero user interaction needed
+                $kubeadmin_password=$(az aro list-credentials \
+                --name ${env:aro_cluster} \
+                --resource-group ${env:resource_group} \
+                --query kubeadminPassword --output tsv)
+                Write-Host "##vso[task.setvariable variable=kubeadmin_password;]kubeadmin_password"
+                ##hoping this isn't needed to get kubectl and oc working
+                ##New-Item -ItemType Directory $(Build.SourcesDirectory)\RedHat\OpenShift
+                ##$env:Path += ";$(Build.SourcesDirectory)\RedHat\OpenShift"
+
+
+
+                #here we go, finally logging in
+                oc login $apiServer -u kubeadmin -p $kubeadmin_password
+                #Create an OpenShift secret to store the Azure Active Directory application secret.
+                oc create secret generic openid-client-secret-azuread \
+                --namespace openshift-config \
+                --from-literal=clientSecret=${$env:keypass}
+              powerShellErrorActionPreference: 'silentlyContinue'
+              addSpnToEnvironment: true
+              useGlobalConfig: true
+              powerShellIgnoreLASTEXITCODE: true
+
+          - task: Bash@3
+            inputs:
+              targetType: 'inline'
+              script: |
+                  cat > oidc.yaml<< EOF
+                  apiVersion: config.openshift.io/v1
+                  kind: OAuth
+                  metadata:
+                    name: cluster
+                  spec:
+                    identityProviders:
+                    - name: AAD
+                      mappingMethod: claim
+                      type: OpenID
+                      openID:
+                        clientID: $app_id
+                        clientSecret:
+                          name: openid-client-secret-azuread
+                        extraScopes:
+                        - email
+                        - profile
+                        extraAuthorizeParameters:
+                          include_granted_scopes: "true"
+                        claims:
+                          preferredUsername:
+                          - email
+                          - upn
+                          name:
+                          - name
+                          email:
+                          - email
+                        issuer: https://login.microsoftonline.com/$(tenant_id)
+                  EOF
+                  oc apply -f oidc.yaml
+
